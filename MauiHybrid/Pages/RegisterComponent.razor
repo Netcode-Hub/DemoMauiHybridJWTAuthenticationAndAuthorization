@@ -1,0 +1,58 @@
+﻿@page "/register"
+@using MauiHybrid.Data
+@inject HttpClient httpClient
+@using System.Text.Json
+@using System.Text;
+@using SharedLibrary.Models
+@using System.Net.Http.Json
+@inject NavigationManager NavManager
+
+<EditForm Model="RegistrationModel" OnValidSubmit="HandleRegister">
+    <DataAnnotationsValidator></DataAnnotationsValidator>
+    <ValidationSummary></ValidationSummary>
+
+    <div class="card">
+        <div class="card-header">Register Account</div>
+        <div class="card-body">
+            <div class="form-group">
+                <label>Fullname</label>
+                <InputText class="form-control" @bind-Value="RegistrationModel.Name"></InputText>
+            </div>
+            <div class="form-group mt-2">
+                <label>Email Address</label>
+                <InputText class="form-control" @bind-Value="RegistrationModel.Email"></InputText>
+            </div>
+            <div class="form-group mt-2">
+                <label>Password</label>
+                <InputText class="form-control" @bind-Value="RegistrationModel.Password"></InputText>
+            </div>
+            <div class="form-group mt-2">
+                <label>Confirm Password</label>
+                <InputText class="form-control" @bind-Value="RegistrationModel.ConfirmPassword"></InputText>
+            </div>
+        </div>
+        <div class="card-footer">
+            <button type="submit" class="btn btn-primary">Register</button>
+        </div>
+    </div>
+</EditForm>
+@code {
+    private RegistrationModel RegistrationModel { get; set; } = new();
+
+    private async Task HandleRegister()
+    {
+        var result = await httpClient.PostAsJsonAsync("https://l65nsmvx-7242.uks1.devtunnels.ms/account/register", RegistrationModel);
+        var readResponse = await result.Content.ReadFromJsonAsync<ServiceResponse>();
+        if (readResponse.Flag)
+        {
+            await Application.Current.MainPage.DisplayAlert("Success", readResponse.Message, "Ok");
+            NavManager.NavigateTo("/", replace: true);
+            RegistrationModel = new RegistrationModel();
+        }
+        else
+        {
+            await Application.Current.MainPage.DisplayAlert("Alert", readResponse.Message, "Ok");
+            return;
+        }
+    }
+}

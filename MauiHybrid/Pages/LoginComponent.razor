@@ -1,0 +1,73 @@
+﻿@page "/login"
+@using MauiHybrid.Authentication
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.IdentityModel.Tokens.Jwt
+@using SharedLibrary.Models
+@using System.Net.Http.Json
+@inject HttpClient httpClient
+@using System.Security.Claims
+@inject NavigationManager navigateMgr
+@inject AuthenticationStateProvider authStateProvider
+
+<EditForm Model="LoginModel" OnValidSubmit="HandleLogin">
+    <DataAnnotationsValidator></DataAnnotationsValidator>
+    <ValidationSummary></ValidationSummary>
+
+    <div class="card">
+        <div class="card-header">Login Account</div>
+        <div class="card-body">
+            <div class="form-group mt-2">
+                <label>Email Address</label>
+                <InputText class="form-control" @bind-Value="LoginModel.Email"></InputText>
+            </div>
+            <div class="form-group mt-2">
+                <label>Password</label>
+                <InputText class="form-control" @bind-Value="LoginModel.Password"></InputText>
+            </div>
+        </div>
+        <div class="card-footer">
+            <button type="submit" class="btn btn-primary">Login</button>
+        </div>
+    </div>
+</EditForm>
+@code {
+    private Login LoginModel { get; set; } = new();
+
+    private async Task HandleLogin()
+    {
+        var result = await httpClient.PostAsJsonAsync("https://l65nsmvx-7242.uks1.devtunnels.ms/Account/login", LoginModel);
+        var response = await result.Content.ReadFromJsonAsync<ServiceResponse>();
+        if (response.Flag)
+        {
+            //Save the token, decrypt and get user claims and save to secured storage.
+            var getUserSession = GetUserClaims(response.Token);
+            if (getUserSession == null) return;
+
+            var customAuthStateProvider = (CustomAuthenticationStateProvider)authStateProvider;
+            await customAuthStateProvider.UpdateAuthenticationState(getUserSession);
+            await Application.Current.MainPage.DisplayAlert("Info", response.Token, "Ok");
+            navigateMgr.NavigateTo("/", forceLoad: true, replace: true);
+            LoginModel = new Login();
+        }
+        else
+        {
+            await Application.Current.MainPage.DisplayAlert("Info", response.Message, "Ok");
+            return;
+        }
+    }
+
+    private UserSession GetUserClaims(string token)
+    {
+        var handler = new JwtSecurityTokenHandler();
+        var readToken = handler.ReadJwtToken(token);
+        var claims = readToken.Claims;
+
+        return new UserSession()
+            {
+                UserName = claims.First(_ => _.Type == ClaimTypes.Name).Value,
+                UserRole = claims.First(_ => _.Type == ClaimTypes.Role).Value,
+                Email = claims.First(_ => _.Type == ClaimTypes.Email).Value,
+                Token = token
+            };
+    }
+}
